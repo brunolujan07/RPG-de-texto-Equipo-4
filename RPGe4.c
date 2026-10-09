@@ -17,7 +17,6 @@ typedef struct{
 }EntradaMagia;
 
      
-
 typedef struct {
     char name[24];
     int HP;
@@ -43,6 +42,9 @@ typedef struct {
     
 
 } Personaje;
+
+
+//FUNCIONES
 
 // Asigna una magia del catálogo al personaje y guarda también su nombre
 // en la posición correspondiente de su arreglo de magias.
@@ -280,51 +282,12 @@ void asignarMagiasCPU(Personaje * personaje, EntradaMagia catalogo_Magias[]){
         }
     }
 }
-void crearCPU(Personaje * personaje,char * nombre,int HP,int danio,int physic_Attck,int magic_Attck,int physic_Defense,int magic_Defense){
-
-    // Asigna el nombre y los atributos principales del enemigo
-    strcpy(personaje->name, nombre);
-    personaje->HP = HP;
-    personaje->danio = danio;
-    personaje->physic_Attck = physic_Attck;
-    personaje->magic_Attck = magic_Attck;
-    personaje->physic_Defense = physic_Defense;
-    personaje->magic_Defense = magic_Defense;
-
-    // Inicializa las banderas de estado del personaje
-    personaje->perder_Turno = 0;
-    personaje->evadir = 0;
-
-    // Inicializa las variables de efectos temporales
-    personaje->atributo_mod = -1;
-    personaje->cant_mod = 0;
-    personaje->cant_turnos = 0;
-
-    // Inicializa el inventario vacío
-    personaje->num_objects = 0;
-
-    Objeto ** objeto_temp = personaje->inventario;
-
-    for(int i = 0; i < 5; i++){
-        *(objeto_temp + i) = NULL;
-    }
-
-    // Inicializa los tres espacios de magia
-    FuncionMagia * magia_temp = personaje->magic;
-    char ** nombre_magia_temp = personaje->magic_name;
-
-    for(int i = 0; i < 3; i++){
-        *(magia_temp + i) = NULL;
-        *(nombre_magia_temp + i) = NULL;
-    }
-}
-
 
 
 void crearObjetosInicialesCPU(Personaje * personaje, int cantidad){
 
     // Arreglo de nombres vinculados al atributo que van a mejorar. 
-    // El índice coincide con tu arreglo de atributos (0 a 4).
+    // El índice coincide con el arreglo de atributos (0 a 4).
     char * nombres_objetos[5] = {
         "Objeto 1",       
         "Objeto 2",      
@@ -335,7 +298,7 @@ void crearObjetosInicialesCPU(Personaje * personaje, int cantidad){
 
     for(int i = 0; i < cantidad; i++){
 
-        // Reserva memoria dinámica para el objeto (Malloc)[cite: 3]
+        // Reserva memoria dinámica para el objeto (Malloc)
         Objeto * objeto = malloc(sizeof(Objeto));
 
         if(objeto == NULL){
@@ -382,6 +345,66 @@ void crearObjetosInicialesCPU(Personaje * personaje, int cantidad){
     }
 }
 
+void crearCPU(Personaje * personaje,char * nombre,int HP,int danio,int physic_Attck,int magic_Attck,int physic_Defense,int magic_Defense){
+
+    // Asigna el nombre y los atributos principales del enemigo
+    strcpy(personaje->name, nombre);
+    personaje->HP = HP;
+    personaje->danio = danio;
+    personaje->physic_Attck = physic_Attck;
+    personaje->magic_Attck = magic_Attck;
+    personaje->physic_Defense = physic_Defense;
+    personaje->magic_Defense = magic_Defense;
+
+    // Inicializa las banderas de estado del personaje
+    personaje->perder_Turno = 0;
+    personaje->evadir = 0;
+
+    // Inicializa las variables de efectos temporales
+    personaje->atributo_mod = -1;
+    personaje->cant_mod = 0;
+    personaje->cant_turnos = 0;
+
+    // Inicializa el inventario vacío
+    personaje->num_objects = 0;
+
+    Objeto ** objeto_temp = personaje->inventario;
+
+    for(int i = 0; i < 5; i++){
+        *(objeto_temp + i) = NULL;
+    }
+
+    // Inicializa los tres espacios de magia
+    FuncionMagia * magia_temp = personaje->magic;
+    char ** nombre_magia_temp = personaje->magic_name;
+
+    for(int i = 0; i < 3; i++){
+        *(magia_temp + i) = NULL;
+        *(nombre_magia_temp + i) = NULL;
+    }
+
+    
+}
+
+//INICIALIZACIÓN
+void inicializarCPUs(Personaje * jugadores, EntradaMagia catalogo_Magias[]){
+
+    crearCPU(jugadores + 1, "Enemigo facil",20, 0, 5, 5, 5, 5);
+    asignarMagiasCPU(jugadores + 1, catalogo_Magias);
+
+    crearCPU(jugadores + 2, "Enemigo intermedio",25, 0, 7, 7, 7, 7);
+    crearObjetosInicialesCPU(jugadores + 2, 2);
+    asignarMagiasCPU(jugadores + 2, catalogo_Magias);
+
+    crearCPU(jugadores + 3, "Enemigo dificil",30, 0, 9, 9, 9, 9);
+    crearObjetosInicialesCPU(jugadores + 3, 3);
+    asignarMagiasCPU(jugadores + 3, catalogo_Magias);
+
+    crearCPU(jugadores + 4, "Jefe Final",40, 0, 12, 12, 10, 10);
+    crearObjetosInicialesCPU(jugadores + 4, 5);
+    asignarMagiasCPU(jugadores + 4, catalogo_Magias);
+}
+
 
 int main(){
 
@@ -403,22 +426,7 @@ int main(){
     elegirMagias(jugadores, catalogo_Magias);
 
     // Inicializa los enemigos con sus atributos por dificultad
-    crearCPU(jugadores + 1, "Enemigo facil",
-             20, 0, 5, 5, 5, 5);
-
-    crearCPU(jugadores + 2, "Enemigo intermedio",
-             25, 0, 7, 7, 7, 7);
-
-    crearCPU(jugadores + 3, "Enemigo dificil",
-             30, 0, 9, 9, 9, 9);
-
-    crearCPU(jugadores + 4, "Jefe Final",
-             40, 0, 12, 12, 10, 10);
-
-    // Asigna los objetos iniciales mediante memoria dinámica
-    crearObjetosInicialesCPU(jugadores + 2, 2);
-    crearObjetosInicialesCPU(jugadores + 3, 3);
-    crearObjetosInicialesCPU(jugadores + 4, 5);
+    inicializarCPUs(jugadores, catalogo_Magias);
 
     return 0;
 }
