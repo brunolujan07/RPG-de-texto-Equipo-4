@@ -106,6 +106,7 @@ void reiniciarEfectos(Personaje * p) {
     for(int i = 0; i < 5; i++){
         *(p->mod_batalla + i) = 0;
     }
+    p->danio = 0;
     p->atributo_mod = -1;
     p->cant_mod = 0;
     p->cant_turnos = 0;
@@ -138,6 +139,15 @@ int pedirNumero(int min, int max){
 
 //===================================FUNCIONES DE MAGIA===================================
 
+// Probabilidad de que una magia funcione: 50% base, +/-10% por cada punto de diferencia,
+// limitado entre 10% y 90%. Asi nunca es imposible ni segura
+int magiaExitosa(int magia, int defensa){
+    int probabilidad = 50 + 10 * (magia - defensa);
+    if(probabilidad < 10) probabilidad = 10;
+    if(probabilidad > 90) probabilidad = 90;
+    return rand() % 100 < probabilidad;
+}
+
 // Intenta aplicar el hechizo para hacer que el defensor pierda su turno.
 // Si el ataque mágico del atacante es mayor o igual a la defensa mágica del defensor,
 // activa la bandera 'perder_Turno' en el objetivo y regresa 1. En caso contrario, regresa 0.
@@ -150,7 +160,7 @@ int perderTurno(void * atacante, void * defensor){
     int defensa = statActual(recibe, 4);
 
     printf("%s lanza el hechizo Rompe-Rodillas. ", lanza->name);
-    if(magia >= defensa){
+    if(magiaExitosa(magia, defensa)) {
         recibe->perder_Turno = 1;
         printf("Magia (%s) %d vs Defensa (%s) %d - Magia exitosa\n", lanza->name, magia, recibe->name, defensa);
         printf("%s pierde un turno\n", recibe->name);
@@ -192,9 +202,9 @@ int rompeArmaduras(void * atacante, void * defensor){
     int defensa = statActual(recibe, 4);
 
     printf("%s lanza el hechizo Desgarra-camisas. ", lanza->name);
-    if(magia >= defensa){
+    if(magiaExitosa(magia, defensa)) {
         printf("Magia (%s) %d vs Defensa (%s) %d - Magia exitosa\n", lanza->name, magia, recibe->name, defensa);
-        printf("¡La magia de %s corroe la armadura de %s!\n", lanza->name, recibe->name);
+        printf("La magia de %s corroe la armadura de %s!\n", lanza->name, recibe->name);
 
         // Solo reduce si todavía hay defensa física que quitar
         if(statActual(recibe, 3) > 0){
@@ -216,7 +226,7 @@ int electrolit(void * atacante, void * defensor){
     Personaje * jugador = (Personaje *) atacante;
     (void) defensor;
 
-    printf("¡%s se toma un Electrolit!\n", jugador->name);
+    printf("%s se toma un Electrolit!\n", jugador->name);
     
     // Reduce el daño recibido en 9 puntos 
     jugador->danio -= 9;
@@ -226,7 +236,7 @@ int electrolit(void * atacante, void * defensor){
         jugador->danio = 0; 
     }
     
-    printf("¡%s se puso las pilas!-yessir Daño actual: %d\n",jugador->name, jugador->danio);
+    printf("%s se puso las pilas!-yessir Danio actual: %d\n",jugador->name, jugador->danio);
     
     return 1; // Siempre exitoso
 }
@@ -244,17 +254,18 @@ int puff(void * atacante, void * defensor){
     int defensa = statActual(recibe, 4);
 
     printf("%s prepara el hechizo vape?? ", lanza->name);
-    if(magia >= defensa){
+    if(magiaExitosa(magia, defensa)) {
         printf("Magia (%s) %d vs Defensa (%s) %d - Magia exitosa\n", lanza->name, magia, recibe->name, defensa);
-        printf("¡%s le pasa un vape sabor cagada a %s!\n", lanza->name, recibe->name);
+        printf("%s le pasa un vape sabor cagada a %s!\n", lanza->name, recibe->name);
 
         recibe->danio += 9;
-        printf("%s recibe 9 puntos de daño. Vida restante: %d \n", recibe->name, statActual(recibe, 0) - recibe->danio);
+        int vida_res = (statActual(recibe, 0) - recibe->danio) < 0 ? 0 : statActual(recibe, 0) - recibe->danio;
+        printf("%s recibe 9 puntos de danio. Vida restante: %d \n", recibe->name, vida_res < 0 ? 0 : vida_res);
 
         return 1; // Éxito
     } else {
         printf("Magia (%s) %d vs Defensa (%s) %d - Magia falla\n", lanza->name, magia, recibe->name, defensa);
-        printf("¡%s dijo que no fuma y lo esquivó!\n", recibe->name);
+        printf("%s dijo que no fuma y lo esquivo!\n", recibe->name);
         return 0; // Fallo
     }
 }
@@ -311,7 +322,7 @@ void asignarMagiasCPU(Personaje * personaje, EntradaMagia catalogo_Magias[]){
 
 // Reserva memoria para un objeto que mejora el atributo indicado, con poder aleatorio.
 // Regresa NULL si malloc falla
-Objeto * crearObjetoAleatorio(int atributo){
+Objeto * crearObjetoAleatorio(int atributo, int nivel){
     // El índice del nombre coincide con el atributo que mejora
     char * nombres[5] = {
         "Caldo de la abuela",   // 0 HP
@@ -326,8 +337,8 @@ Objeto * crearObjetoAleatorio(int atributo){
  
     strcpy(o->name, *(nombres + atributo));
     o->atribute = atributo;
-    o->power = rand() % 5 + 1;
- 
+    o->power = rand() % 3 + 1 + nivel; 
+
     return o;
 }
  
@@ -385,7 +396,7 @@ void crearObjetosInicialesCPU(Personaje * personaje, int cantidad){
  
     for(int i = 0; i < cantidad; i++){
  
-        Objeto * objeto = crearObjetoAleatorio(rand() % 5);
+        Objeto * objeto = crearObjetoAleatorio(rand() % 5, 1);
  
         if(objeto == NULL){
             printf("Error al reservar memoria para el objeto.\n");
@@ -401,7 +412,7 @@ void crearObjetosInicialesCPU(Personaje * personaje, int cantidad){
 }
  
 // Genera 4 objetos con atributos distintos, el jugador elige 2 y los demás se liberan
-void recompensas(Personaje * jugador){
+void recompensas(Personaje * jugador, int nivel){
     Objeto * opciones[4];
     int usados[5] = {0, 0, 0, 0, 0};
     int creados = 0;
@@ -411,7 +422,7 @@ void recompensas(Personaje * jugador){
         int atributo = rand() % 5;
         if(*(usados + atributo) == 0){
             *(usados + atributo) = 1;
-            *(opciones + creados) = crearObjetoAleatorio(atributo);
+            *(opciones + creados) = crearObjetoAleatorio(atributo, nivel);
  
             if(*(opciones + creados) == NULL){
                 printf("Error al reservar memoria para los objetos.\n");
@@ -644,11 +655,162 @@ void loreDerrota(Personaje * jugador, Personaje * enemigo){
 
 
 ///===================================BATALLA===================================
+
+// Vida restante de un personaje: HP efectivo (base + objetos) menos el daño recibido
+int vida(Personaje * p){
+    return statActual(p, 0) - p->danio;
+}
+ 
+// Muestra la vida y stats actuales de ambos personajes
+void mostrarEstado(Personaje * jugador, Personaje * enemigo){
+    printf("\n--------------------------------------------------\n");
+    printf("%-22s Vida: %2d/%2d  AtkF: %2d  AtkM: %2d  DefF: %2d  DefM: %2d\n",
+           jugador->name, vida(jugador), statActual(jugador, 0),
+           statActual(jugador, 1), statActual(jugador, 2), statActual(jugador, 3), statActual(jugador, 4));
+    printf("%-22s Vida: %2d/%2d  AtkF: %2d  AtkM: %2d  DefF: %2d  DefM: %2d\n",
+           enemigo->name, vida(enemigo), statActual(enemigo, 0),
+           statActual(enemigo, 1), statActual(enemigo, 2), statActual(enemigo, 3), statActual(enemigo, 4));
+    printf("--------------------------------------------------\n");
+}
+ 
+// Si el defensor esta evadiendo, tira un volado: 50% esquiva el ataque.
+// Regresa 1 si lo esquivo y 0 si el ataque le llega.
+// La evasion dura todo el siguiente turno del oponente y se apaga al empezar el turno del defensor.
+int intentaEsquivar(Personaje * atacante, Personaje * defensor){
+    if(!defensor->evadir) return 0;
+ 
+    if(rand() % 2 == 0){
+        printf("%s esquiva lo que le avento %s!\n", defensor->name, atacante->name);
+        return 1;
+    }
+ 
+    printf("%s intento esquivar, pero no le alcanzo!\n", defensor->name);
+    return 0;
+}
+ 
+// Si el defensor esta evadiendo, tiene 50% de esquivarlo.
+void ataqueFisico(Personaje * atacante, Personaje * defensor){
+    printf("%s se lanza a golpear a %s. ", atacante->name, defensor->name);
+    if(intentaEsquivar(atacante, defensor)) return;
+ 
+    int danio = statActual(atacante, 1) - statActual(defensor, 3) / 2;
+    if(danio < 1) danio = 1;
+ 
+    defensor->danio += danio;
+    printf("%s le mete un golpe a %s: %d de danio. Vida restante: %d\n",
+           atacante->name, defensor->name, danio, vida(defensor));
+}
+ 
+// Las magias que se aplican a uno mismo no se pueden esquivar
+int esMagiaOfensiva(FuncionMagia magia){
+    return magia != electrolit && magia != attackbuff;
+}
+ 
+// Lanza la magia del personaje. Las ofensivas se pueden esquivar
+void lanzarMagia(Personaje * lanza, Personaje * recibe, int n){
+    FuncionMagia magia = *(lanza->magic + n);
+ 
+    if(esMagiaOfensiva(magia) && recibe->evadir){
+        printf("%s lanza %s. ", lanza->name, *(lanza->magic_name + n));
+        if(intentaEsquivar(lanza, recibe)) return;
+    }
+ 
+    magia(lanza, recibe);   // Llamada a traves del apuntador a funcion
+}
+ 
+// Menu del turno del jugador
+void turnoJugador(Personaje * jugador, Personaje * enemigo){
+    int turno_usado = 0;
+ 
+    while(!turno_usado){
+        printf("\nTurno de %s. Que vas a hacer?\n", jugador->name);
+        printf("\t1. Ataque fisico\n");
+        printf("\t2. Magia\n");
+        printf("\t3. Evadir el siguiente ataque\n");
+        printf("\t4. Ver inventario\n");
+ 
+        int opcion = pedirNumero(1, 4);
+ 
+        if(opcion == 1){
+            ataqueFisico(jugador, enemigo);
+            turno_usado = 1;
+        }else if(opcion == 2){
+            printf("Tus magias:\n");
+            for(int i = 0; i < 3; i++){
+                printf("\t%d. %s\n", i + 1, *(jugador->magic_name + i));
+            }
+            int n = pedirNumero(1, 3) - 1;
+            lanzarMagia(jugador, enemigo, n);
+            turno_usado = 1;
+        }else if(opcion == 3){
+            jugador->evadir = 1;
+            printf("%s se pone en guardia para el siguiente turno del rival (50%% de esquivar).\n", jugador->name);
+            turno_usado = 1;
+        }else{
+            imprimirInventario(jugador);
+        }
+    }
+}
+ 
+// Turno del enemigo: 50% ataque fisico, 40% magia al azar, 10% evadir
+void turnoCPU(Personaje * enemigo, Personaje * jugador){
+    int accion = rand() % 10;
+ 
+    printf("\nTurno de %s.\n", enemigo->name);
+ 
+    if(accion < 5){
+        ataqueFisico(enemigo, jugador);
+    }else if(accion < 9){
+        lanzarMagia(enemigo, jugador, rand() % 3);
+    }else{
+        enemigo->evadir = 1;
+        printf("%s se pone en guardia para tu siguiente turno (50%% de esquivar).\n", enemigo->name);
+    }
+}
+ 
+// Ciclo de batalla. Regresa 1 si gana el jugador y 0 si pierde
 int batalla(Personaje * jugador, Personaje * enemigo){
     reiniciarEfectos(jugador);
     reiniciarEfectos(enemigo);
-
-    return 1;
+    int ganado = 1;
+ 
+    mostrarEstado(jugador, enemigo);
+ 
+    while(1){
+        // ---- Turno del jugador ----
+        jugador->evadir = 0;   // La evasion solo dura hasta su siguiente turno
+        if(jugador->perder_Turno){
+            printf("\n%s sigue sobandose las rodillas y pierde su turno.\n", jugador->name);
+            jugador->perder_Turno = 0;
+        }else{
+            turnoJugador(jugador, enemigo);
+        }
+        avanzarEfectos(jugador);
+ 
+        if(vida(enemigo) <= 0){
+            ganado = 1;
+            break;
+        }
+ 
+        // ---- Turno del enemigo ----
+        enemigo->evadir = 0;
+        if(enemigo->perder_Turno){
+            printf("\n%s sigue sobandose las rodillas y pierde su turno.\n", enemigo->name);
+            enemigo->perder_Turno = 0;
+        }else{
+            turnoCPU(enemigo, jugador);
+        }
+        avanzarEfectos(enemigo);
+ 
+        if(vida(jugador) <= 0){
+            ganado = 0;
+            break;
+        }
+ 
+        mostrarEstado(jugador, enemigo);
+    }
+ 
+    return ganado;
 }
 
 
@@ -693,7 +855,7 @@ int main(){
 
         //Reclamo de recompensas
         if(nivel < 4){
-            recompensas(jugadores);   // Después del jefe final ya no hay siguiente batalla
+            recompensas(jugadores, nivel);   // Después del jefe final ya no hay siguiente batalla
         }
     }
 
